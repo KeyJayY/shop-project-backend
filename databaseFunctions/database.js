@@ -1,10 +1,13 @@
 import pkg from 'pg';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const {Pool} = pkg;
 
 const pool = new Pool({
     host: process.env.HOST,
-    port: 5432,
+    port: process.env.DATABASE_PORT,
     database: process.env.DATABASE,
     user: process.env.USER,
     password: process.env.PASSWORD,
@@ -34,4 +37,8 @@ export const addNewUser = async (user) => {
 
 export const getShopItemById = async (id) => {
     return (await pool.query("SELECT * FROM product WHERE product_id = $1", [id])).rows[0];
+}
+
+export const getUserDataByEmail = async (email) => {
+    return (await pool.query('SELECT * FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
