@@ -42,3 +42,15 @@ export const getShopItemById = async (id) => {
 export const getUserDataByEmail = async (email) => {
     return (await pool.query('SELECT * FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
+
+export const getOpinionsByProductId = async (productId) => {
+    return (await pool.query('SELECT opinion as content, first_name as author FROM opinion JOIN "user" ON user_id = client_id WHERE product_id = $1', [productId])).rows;
+}
+
+export const addToCart = async (productId, amount, userId) => {
+    return (await pool.query('INSERT INTO products_in_carts VALUES ($1, $2, $3)', [userId, productId, amount]));
+}
+
+export const getCartItemsByUserId = async (userId) => {
+    return (await pool.query('SELECT products_in_carts.product_id, name, price, amount FROM products_in_carts JOIN product ON product.product_id = products_in_carts.product_id WHERE products_in_carts.client_id = $1', [userId])).rows;
+}
