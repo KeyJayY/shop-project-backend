@@ -12,7 +12,8 @@ import {
     getUserDataByEmail,
     getOpinionsByProductId,
     addToCart,
-    getCartItemsByUserId
+    getCartItemsByUserId,
+    updateUserData
 } from './databaseFunctions/database.js';
 import {fileURLToPath} from 'url';
 import dotenv from 'dotenv';
@@ -82,8 +83,14 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+app.put("/api/changeUserData", authenticateToken, async (req, res) => {
+    if((await updateUserData(req.body, req.user.id)).rowCount > 0)
+        return res.status(200).json({message: 'Successfully updated user data!'});
+    return res.status(404).json({message: "failed"});
+})
+
 app.get("/api/userData", authenticateToken, async (req, res) => {
-        return res.status(200).json(await getUserDataByEmail(req.user.email))
+    return res.status(200).json(await getUserDataByEmail(req.user.email))
 })
 
 app.post("/api/addToCart", authenticateToken, async (req, res) => {

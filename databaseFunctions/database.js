@@ -40,7 +40,7 @@ export const getShopItemById = async (id) => {
 }
 
 export const getUserDataByEmail = async (email) => {
-    return (await pool.query('SELECT * FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
+    return (await pool.query('SELECT user_id, first_name, last_name, address, address_city, birth_date FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
 
 export const getOpinionsByProductId = async (productId) => {
@@ -53,4 +53,8 @@ export const addToCart = async (productId, amount, userId) => {
 
 export const getCartItemsByUserId = async (userId) => {
     return (await pool.query('SELECT products_in_carts.product_id, name, price, amount FROM products_in_carts JOIN product ON product.product_id = products_in_carts.product_id WHERE products_in_carts.client_id = $1', [userId])).rows;
+}
+
+export const updateUserData = async (user, userId) => {
+    return (await pool.query('UPDATE "user" SET first_name = $1, last_name = $2, address = $3, address_city = $4, birth_date = $5 WHERE user_id = $6', [user.first_name, user.last_name, user.address, user.address_city, user.birth_date, userId]));
 }
