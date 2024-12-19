@@ -44,7 +44,7 @@ export const getUserDataByEmail = async (email) => {
 }
 
 export const getOpinionsByProductId = async (productId) => {
-    return (await pool.query('SELECT opinion as content, first_name as author FROM opinion JOIN "user" ON user_id = client_id WHERE product_id = $1', [productId])).rows;
+    return (await pool.query('SELECT opinion as content, grade, first_name as author FROM opinion JOIN "user" ON user_id = client_id WHERE product_id = $1', [productId])).rows;
 }
 
 export const addToCart = async (productId, amount, userId) => {
@@ -57,4 +57,8 @@ export const getCartItemsByUserId = async (userId) => {
 
 export const updateUserData = async (user, userId) => {
     return (await pool.query('UPDATE "user" SET first_name = $1, last_name = $2, address = $3, address_city = $4, birth_date = $5 WHERE user_id = $6', [user.first_name, user.last_name, user.address, user.address_city, user.birth_date, userId]));
+}
+
+export const addProductOpinion = async (productId, userId, opinion, grade) => {
+    return await pool.query('INSERT INTO opinion VALUES ($1, $2, $3, $4)', [productId, userId, opinion, grade])
 }

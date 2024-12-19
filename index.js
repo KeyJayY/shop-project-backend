@@ -4,17 +4,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import {
-    addNewUser,
-    getShopItems,
-    getUserInfoByEmail,
-    getShopItemById,
-    getUserDataByEmail,
-    getOpinionsByProductId,
-    addToCart,
-    getCartItemsByUserId,
-    updateUserData
-} from './databaseFunctions/database.js';
+import * as databaseFunctions from './databaseFunctions/database.js';
 import {fileURLToPath} from 'url';
 import dotenv from 'dotenv';
 
@@ -33,7 +23,7 @@ app.use(bodyParser.json());
 
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    const user = await getUserInfoByEmail(username);
+    const user = await databaseFunctions.getUserInfoByEmail(username);
 
     if (!user) {
         return res.status(400).json({ message: 'wrong username or password!' });
@@ -51,7 +41,7 @@ app.post('/login', async (req, res) => {
 app.post('/register', async (req, res) => {
     const data = req.body;
     data.password = await bcrypt.hash(req.body.password, 10);
-    const result = await addNewUser(data)
+    const result = await databaseFunctions.addNewUser(data)
     if(result){
         res.status(200).json({message: 'Successfully created account!'});
     }
@@ -60,12 +50,12 @@ app.post('/register', async (req, res) => {
 
 app.get("/api/product/:id", async (req, res) => {
     const { id } = req.params;
-    res.status(200).json(await getShopItemById(id));
+    res.status(200).json(await databaseFunctions.getShopItemById(id));
 })
 
 app.get("/api/opinions/:id", async (req, res) => {
     const { id } = req.params;
-    res.status(200).json(await getOpinionsByProductId(id));
+    res.status(200).json(await databaseFunctions.getOpinionsByProductId(id));
 })
 
 const authenticateToken = (req, res, next) => {
@@ -83,21 +73,30 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+app.post("/api/opinion/add", authenticateToken, async (req, res) => {
+    try{
+        await databaseFunctions.addProductOpinion(req.body.productId, req.user.id, req.body.opinion, req.body.grade);
+        res.status(200).json("dodano opinie")
+    } catch (e){
+        res.status(400).json("opinia o tym produkcie od tego użytkownika już istnieje")
+    }
+})
+
 app.put("/api/changeUserData", authenticateToken, async (req, res) => {
-    if((await updateUserData(req.body, req.user.id)).rowCount > 0)
+    if((await databaseFunctions.updateUserData(req.body, req.user.id)).rowCount > 0)
         return res.status(200).json({message: 'Successfully updated user data!'});
     return res.status(404).json({message: "failed"});
 })
 
 app.get("/api/userData", authenticateToken, async (req, res) => {
-    return res.status(200).json(await getUserDataByEmail(req.user.email))
+    return res.status(200).json(await databaseFunctions.getUserDataByEmail(req.user.email))
 })
 
 app.post("/api/addToCart", authenticateToken, async (req, res) => {
     try {
         const {productId, amount} = req.body;
         const userId = req.user.id;
-        await addToCart(productId, amount, userId);
+        await databaseFunctions.addToCart(productId, amount, userId);
         res.status(200).json({message: 'Successfully add to cart!'});
     } catch (err) {
         if(err.code == 23505)
@@ -108,7 +107,7 @@ app.post("/api/addToCart", authenticateToken, async (req, res) => {
 })
 
 app.get("/api/cart", authenticateToken, async (req, res) => {
-    res.status(200).json(await getCartItemsByUserId(req.user.id));
+    res.status(200).json(await databaseFunctions.getCartItemsByUserId(req.user.id));
 })
 
 
@@ -130,7 +129,7 @@ app.get("/api/verifyToken", (req, res) => {
 })
 
 app.get("/api/getShopItems", async (req, res) => {
-    res.status(200).json(await getShopItems());
+    res.status(200).json(await databaseFunctions.getShopItems());
 })
 
 app.get('*', (req, res) => {
