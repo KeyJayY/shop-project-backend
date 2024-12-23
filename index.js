@@ -129,8 +129,25 @@ app.get("/api/verifyToken", (req, res) => {
 })
 
 app.get("/api/getShopItems", async (req, res) => {
-    res.status(200).json(await databaseFunctions.getShopItems());
+    const search = req.query.search ? req.query.search : "";
+    const sorting = req.query.sorting ? req.query.sorting : "";
+    const category = req.query.category ? req.query.category : "";
+    res.status(200).json(await databaseFunctions.getShopItems(search, sorting, category));
 })
+
+app.get("/api/getCategories", async (req,res) => {
+    res.status(200).json(await databaseFunctions.getCategories());
+})
+
+app.get('/image/:id', async (req, res) => {
+    const id = req.params.id;
+    const data = await databaseFunctions.getImage(id);
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${data.name}"`);
+
+    res.send(data.image);
+});
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'static', 'index.html'));

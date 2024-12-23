@@ -20,8 +20,15 @@ pool.on('connect', (client) => {
     client.query('SET search_path TO store_project');
 });
 
-export const getShopItems = async () => {
-    return (await pool.query("SELECT * FROM product")).rows;
+export const getShopItems = async (search = "", sort= "", category = "") => {
+    const query = `SELECT * FROM product WHERE LOWER(name) LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
+    const parameters = category ? [`%${search}%`, category] : [`%${search}%`];
+    return (await pool.query(query, parameters)).rows;
+
+}
+
+export const getCategories = async () => {
+    return (await pool.query(`SELECT DISTINCT category FROM product`)).rows;
 }
 
 export const getUserInfoByEmail = async (email) => {
@@ -61,4 +68,17 @@ export const updateUserData = async (user, userId) => {
 
 export const addProductOpinion = async (productId, userId, opinion, grade) => {
     return await pool.query('INSERT INTO opinion VALUES ($1, $2, $3, $4)', [productId, userId, opinion, grade])
+}
+
+export const getImage = async (id) => {
+    try {
+        const result = await pool.query(
+            'SELECT image FROM image WHERE image_id = $1',
+            [id]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Błąd podczas pobierania obrazu:', error);
+        res.status(500).send('Wystąpił błąd serwera');
+    }
 }
