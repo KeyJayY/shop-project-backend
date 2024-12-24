@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import * as databaseFunctions from './databaseFunctions/database.js';
 import {fileURLToPath} from 'url';
 import dotenv from 'dotenv';
+import {removeItemFromCart} from "./databaseFunctions/database.js";
 
 dotenv.config();
 
@@ -73,6 +74,15 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+app.delete("/api/cart/:id", authenticateToken, async (req, res) =>{
+    if((await removeItemFromCart(req.params.id, req.user.id)).rowCount > 0){
+        res.status(200).json({message: 'Item removed!'});
+    } else {
+        res.status(400).json({message: 'error!'});
+    }
+
+});
+
 app.post("/api/opinion/add", authenticateToken, async (req, res) => {
     try{
         await databaseFunctions.addProductOpinion(req.body.productId, req.user.id, req.body.opinion, req.body.grade);
@@ -137,6 +147,10 @@ app.get("/api/getShopItems", async (req, res) => {
 
 app.get("/api/getCategories", async (req,res) => {
     res.status(200).json(await databaseFunctions.getCategories());
+})
+
+app.get("/api/getOrderHistory", authenticateToken,  async (req,res) => {
+    res.status(200).json(await databaseFunctions.getOrdersByUserId(req.user.id));
 })
 
 app.get('/image/:id', async (req, res) => {

@@ -70,6 +70,15 @@ export const addProductOpinion = async (productId, userId, opinion, grade) => {
     return await pool.query('INSERT INTO opinion VALUES ($1, $2, $3, $4)', [productId, userId, opinion, grade])
 }
 
+export const getOrdersByUserId = async (userId) => {
+    return (await pool.query('SELECT date, status, discount_percent  FROM "order" JOIN discount_code ON "order".discount_code_id = discount_code.discount_id WHERE client_id = $1', [userId])).rows;
+}
+
+export const removeItemFromCart = async (productId, userId) => {
+    console.log(productId, userId)
+    return (await pool.query('DELETE FROM products_in_carts WHERE product_id = $1 AND client_id = $2', [productId, userId]));
+}
+
 export const getImage = async (id) => {
     try {
         const result = await pool.query(
