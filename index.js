@@ -74,6 +74,12 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+app.put("/api/order", authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    await databaseFunctions.createOrder(userId);
+    res.status(200).json({message: 'Successfully created order!'});
+})
+
 app.delete("/api/cart/:id", authenticateToken, async (req, res) =>{
     if((await removeItemFromCart(req.params.id, req.user.id)).rowCount > 0){
         res.status(200).json({message: 'Item removed!'});

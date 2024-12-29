@@ -20,7 +20,7 @@ pool.on('connect', (client) => {
     client.query('SET search_path TO store_project');
 });
 
-export const getShopItems = async (search = "", sort= "", category = "") => {
+export const getShopItems = async (search = "", sort = "", category = "") => {
     const query = `SELECT * FROM product WHERE LOWER(name) LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
     const parameters = category ? [`%${search}%`, category] : [`%${search}%`];
     return (await pool.query(query, parameters)).rows;
@@ -71,11 +71,32 @@ export const addProductOpinion = async (productId, userId, opinion, grade) => {
 }
 
 export const getOrdersByUserId = async (userId) => {
-    return (await pool.query('SELECT date, status, discount_percent  FROM "order" JOIN discount_code ON "order".discount_code_id = discount_code.discount_id WHERE client_id = $1', [userId])).rows;
+    const query = `
+    SELECT
+        o.date date,
+        CEIL(SUM(op.amount * p.price* (1 - coalesce(dc.discount_percent, 0) / 100.0)))  AS price,
+        o.status,
+        dc.discount_percent
+        FROM
+            "order" o
+        JOIN
+            order_product op ON o.order_id = op.order_id
+        JOIN
+            product p ON op.product_id = p.product_id
+        LEFT JOIN
+            discount_code dc ON o.discount_code = dc.code
+        WHERE
+            o.client_id = $1
+        GROUP BY
+            o.order_id, discount_percent
+        ORDER BY
+            o.order_id;
+
+    `
+    return (await pool.query(query, [userId])).rows;
 }
 
 export const removeItemFromCart = async (productId, userId) => {
-    console.log(productId, userId)
     return (await pool.query('DELETE FROM products_in_carts WHERE product_id = $1 AND client_id = $2', [productId, userId]));
 }
 
@@ -89,5 +110,41 @@ export const getImage = async (id) => {
     } catch (error) {
         console.error('Błąd podczas pobierania obrazu:', error);
         res.status(500).send('Wystąpił błąd serwera');
+    }
+}
+
+export const createOrder = async (clientId) => {
+    try {
+        await pool.query('BEGIN');
+
+        const insertOrderQuery = `
+      INSERT INTO "order" (client_id, date, status)
+      VALUES ($1, NOW(), 'pakowanie')
+      RETURNING order_id
+    `;
+        const orderResult = await pool.query(insertOrderQuery, [clientId]);
+        const orderId = orderResult.rows[0].order_id;
+
+        const insertOrderProductQuery = `
+      INSERT INTO order_product (order_id, product_id, amount)
+      SELECT $1, product_id, amount
+      FROM products_in_carts
+      WHERE client_id = $2
+    `;
+        await pool.query(insertOrderProductQuery, [orderId, clientId]);
+
+        const deleteCartQuery = `
+      DELETE FROM products_in_carts
+      WHERE client_id = $1
+    `;
+        await pool.query(deleteCartQuery, [clientId]);
+
+        await pool.query('COMMIT');
+
+        return orderId;
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error placing order:', error);
+        throw error;
     }
 }
