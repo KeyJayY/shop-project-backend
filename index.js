@@ -74,6 +74,10 @@ const authenticateToken = (req, res, next) => {
     }
 };
 
+app.get("/api/getOrderDetails/:id", async (req, res) => {
+    res.status(200).json(await databaseFunctions.getOrderDetails(req.params.id));
+})
+
 app.put("/api/order", authenticateToken, async (req, res) => {
     const userId = req.user.id;
     await databaseFunctions.createOrder(userId);

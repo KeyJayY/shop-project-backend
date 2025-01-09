@@ -73,6 +73,7 @@ export const addProductOpinion = async (productId, userId, opinion, grade) => {
 export const getOrdersByUserId = async (userId) => {
     const query = `
     SELECT
+        o.order_id,
         o.date date,
         CEIL(SUM(op.amount * p.price* (1 - coalesce(dc.discount_percent, 0) / 100.0)))  AS price,
         o.status,
@@ -94,6 +95,22 @@ export const getOrdersByUserId = async (userId) => {
 
     `
     return (await pool.query(query, [userId])).rows;
+}
+
+export const getOrderDetails = async (orderId) => {
+    const query = `
+    SELECT
+        p.product_id,
+        p.name AS product_name,
+        op.amount AS product_amount
+    FROM
+        order_product op
+    JOIN
+        product p ON op.product_id = p.product_id
+    WHERE
+        op.order_id = $1;
+    `
+    return (await pool.query(query, [orderId])).rows;
 }
 
 export const removeItemFromCart = async (productId, userId) => {
