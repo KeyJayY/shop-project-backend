@@ -38,16 +38,53 @@ app.post('/login', async (req, res) => {
     res.json({ message: 'Successfully logged in!', token });
 });
 
+const generateAdminToken = () => {
+    const token = jwt.sign({ email: "test", id: "test", role: "admin" }, JWT_SECRET, { expiresIn: '1h' });
+    return token
+}
 
-app.post('/register', async (req, res) => {
-    const data = req.body;
-    data.password = await bcrypt.hash(req.body.password, 10);
-    const result = await databaseFunctions.addNewUser(data)
-    if(result){
-        res.status(200).json({message: 'Successfully created account!'});
+app.post('/admin/login', async (req, res) => {
+    const {username, password} = req.body
+    const user = await databaseFunctions.getAdminInfoByUsername(username);
+    if(user.password === password){
+        const token = generateAdminToken();
+        res.status(200).json({ success: true, token });
+    } else {
+        res.status(400).json({ message: 'wrong username or password!' });
     }
 
 });
+
+app.get('/admin/check-token', (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token || !verifyAdminToken(token)) {
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    res.json({ success: true, message: 'Token valid' });
+});
+
+app.post('/register', async (req, res) => {
+    try {
+        const data = req.body;
+        data.password = await bcrypt.hash(req.body.password, 10);
+        const result = await databaseFunctions.addNewUser(data);
+
+        if (result) {
+            res.status(200).json({ message: 'Successfully created account!' });
+        } else {
+            res.status(400).json({ message: 'Failed to create account. Please try again.' });
+        }
+    } catch (error) {
+        if (error.code === '23505') {
+            res.status(409).json({ message: 'Email already in use. Please use a different email address.' });
+        } else {
+            console.error('Error creating account:', error);
+            res.status(500).json({ message: 'An unexpected error occurred. Please try again later.' });
+        }
+    }
+});
+
+
 
 app.get("/api/product/:id", async (req, res) => {
     const { id } = req.params;
@@ -80,7 +117,7 @@ app.get("/api/getOrderDetails/:id", async (req, res) => {
 
 app.put("/api/order", authenticateToken, async (req, res) => {
     const userId = req.user.id;
-    await databaseFunctions.createOrder(userId);
+    await databaseFunctions.createOrder(userId, req.body.code);
     res.status(200).json({message: 'Successfully created order!'});
 })
 
@@ -163,6 +200,10 @@ app.get("/api/getOrderHistory", authenticateToken,  async (req,res) => {
     res.status(200).json(await databaseFunctions.getOrdersByUserId(req.user.id));
 })
 
+app.get("/api/getProductGrade/:id", async (req, res) => {
+    res.status(200).json(await databaseFunctions.getProductGrade(req.params.id))
+})
+
 app.get('/image/:id', async (req, res) => {
     const id = req.params.id;
     const data = await databaseFunctions.getImage(id);
@@ -172,6 +213,14 @@ app.get('/image/:id', async (req, res) => {
 
     res.send(data.image);
 });
+
+app.get("/api/checkCode", async (req, res) => {
+    if((await databaseFunctions.getCode(req.query.code)).length > 0){
+        res.status(200).json({message: "correct"});
+    } else{
+        res.status(200).json({message: "wrong code"});
+    }
+})
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'static', 'index.html'));

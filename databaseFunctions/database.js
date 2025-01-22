@@ -35,6 +35,10 @@ export const getUserInfoByEmail = async (email) => {
     return (await pool.query('SELECT * FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
 
+export const getAdminInfoByUsername = async (username) => {
+    return (await pool.query('SELECT username, password FROM admin WHERE username = $1 LIMIT 1', [username])).rows[0];
+}
+
 export const addNewUser = async (user) => {
     return await pool.query(
         'INSERT INTO "user" (first_name, last_name, email, address, address_city, birth_date, password) VALUES ($1, $2, $3, $4, $5, $6, $7);',
@@ -43,7 +47,7 @@ export const addNewUser = async (user) => {
 }
 
 export const getShopItemById = async (id) => {
-    return (await pool.query("SELECT * FROM product WHERE product_id = $1", [id])).rows[0];
+    return (await pool.query("SELECT p.*, AVG(o.grade) AS average_grade FROM product p LEFT JOIN opinion o ON p.product_id = o.product_id WHERE p.product_id = $1 GROUP BY p.product_id;\n", [id])).rows[0];
 }
 
 export const getUserDataByEmail = async (email) => {
@@ -130,16 +134,20 @@ export const getImage = async (id) => {
     }
 }
 
-export const createOrder = async (clientId) => {
+export const getProductGrade = async (id) =>{
+    return (await pool.query("SELECT AVG(grade) AS average_grade FROM opinions WHERE product_id = $1", [id])).rows[0]
+}
+
+export const createOrder = async (clientId, code) => {
     try {
         await pool.query('BEGIN');
 
         const insertOrderQuery = `
-      INSERT INTO "order" (client_id, date, status)
-      VALUES ($1, NOW(), 'pakowanie')
+      INSERT INTO "order" (client_id, date, status, discount_code)
+      VALUES ($1, NOW(), 'pakowanie', $2)
       RETURNING order_id
     `;
-        const orderResult = await pool.query(insertOrderQuery, [clientId]);
+        const orderResult = await pool.query(insertOrderQuery, [clientId, code]);
         const orderId = orderResult.rows[0].order_id;
 
         const insertOrderProductQuery = `
@@ -164,4 +172,9 @@ export const createOrder = async (clientId) => {
         console.error('Error placing order:', error);
         throw error;
     }
+}
+
+export const getCode = async (code) => {
+    const query = 'SELECT * FROM discount_code WHERE code = $1';
+    return (await pool.query(query, [code])).rows;
 }
