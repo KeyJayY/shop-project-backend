@@ -35,6 +35,78 @@ export const getUserInfoByEmail = async (email) => {
     return (await pool.query('SELECT * FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
 
+export const getAllUsers = async (pageNr) => {
+    try {
+        const recordsPerPage = 50;
+        const offset = (pageNr - 1) * recordsPerPage;
+
+        const query = `
+          SELECT 
+            user_id, 
+            first_name, 
+            last_name, 
+            address, 
+            email, 
+            address_city, 
+            birth_date
+          FROM 
+            "user"
+          ORDER BY 
+            user_id
+          LIMIT $1 OFFSET $2;
+        `;
+
+        const result = await pool.query(query, [recordsPerPage, offset]);
+
+        return result.rows;
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+    }
+};
+
+export const getTotalNumberOfUsers = async () => {
+    try {
+        const query = `
+      SELECT 
+        COUNT(*) AS total
+      FROM 
+        "user";
+    `;
+        const result = await pool.query(query);
+        return parseInt(result.rows[0].total, 10);
+    } catch (error) {
+        console.error('Error fetching total users:', error);
+        throw error;
+    }
+};
+
+export const getProducts = async (page) => {
+    try {
+        const recordsPerPage = 50;
+        const offset = (page - 1) * recordsPerPage;
+        const query = `
+      SELECT 
+        product_id, 
+        name, 
+        category, 
+        price, 
+        description
+      FROM 
+        "product"
+      ORDER BY 
+        product_id
+      LIMIT $1 OFFSET $2;
+    `;
+        const result = await pool.query(query, [recordsPerPage, offset]);
+        return result.rows;
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        throw error;
+    }
+};
+
+
 export const getAdminInfoByUsername = async (username) => {
     return (await pool.query('SELECT username, password FROM admin WHERE username = $1 LIMIT 1', [username])).rows[0];
 }

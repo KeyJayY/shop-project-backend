@@ -8,6 +8,8 @@ import * as databaseFunctions from './databaseFunctions/database.js';
 import {fileURLToPath} from 'url';
 import dotenv from 'dotenv';
 import {removeItemFromCart} from "./databaseFunctions/database.js";
+import userRoutes from './routes/userRoutes.js';
+
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ const PORT = process.env.PORT || 5000;
 app.use(express.static( 'static'));
 app.use(cors());
 app.use(bodyParser.json());
+
+app.use('/api/user', userRoutes);
 
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
@@ -39,8 +43,7 @@ app.post('/login', async (req, res) => {
 });
 
 const generateAdminToken = () => {
-    const token = jwt.sign({ email: "test", id: "test", role: "admin" }, JWT_SECRET, { expiresIn: '1h' });
-    return token
+    return jwt.sign({ email: "test", id: "test", role: "admin" }, JWT_SECRET, { expiresIn: '1h' });
 }
 
 app.post('/admin/login', async (req, res) => {
@@ -55,13 +58,36 @@ app.post('/admin/login', async (req, res) => {
 
 });
 
-app.get('/admin/check-token', (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token || !verifyAdminToken(token)) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
+const verifyAdminToken = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "No Token" });
     }
-    res.json({ success: true, message: 'Token valid' });
+
+    const token = authHeader.split(" ")[1];
+    try {
+        req.user =  jwt.verify(token, JWT_SECRET);
+        if(req.user.role === "admin")
+            next();
+        else
+            return res.status(401).json({ message: "Invalid Token" });
+    } catch (err) {
+        return res.status(401).json({ valid: false, message: "Wrong token" });
+    }
+}
+
+app.get('/admin/check-token', verifyAdminToken, (req, res) => {
+    res.status(200).json({message: "verified"})
 });
+
+app.get("/api/users/all/:pageNr", async (req, res) => {
+    return res.status(200).json({users: await databaseFunctions.getAllUsers(req.params.pageNr), total: await databaseFunctions.getTotalNumberOfUsers()});
+})
+
+app.get("/api/products", async (req, res) => {
+    return res.status(200).json(await databaseFunctions.getProducts(1))
+})
+
 
 app.post('/register', async (req, res) => {
     try {
@@ -83,8 +109,6 @@ app.post('/register', async (req, res) => {
         }
     }
 });
-
-
 
 app.get("/api/product/:id", async (req, res) => {
     const { id } = req.params;
@@ -166,8 +190,6 @@ app.post("/api/addToCart", authenticateToken, async (req, res) => {
 app.get("/api/cart", authenticateToken, async (req, res) => {
     res.status(200).json(await databaseFunctions.getCartItemsByUserId(req.user.id));
 })
-
-
 
 app.get("/api/verifyToken", (req, res) => {
     const authHeader = req.headers.authorization;
