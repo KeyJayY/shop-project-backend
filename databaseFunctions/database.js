@@ -21,7 +21,7 @@ pool.on('connect', (client) => {
 });
 
 export const getShopItems = async (search = "", sort = "", category = "") => {
-    const query = `SELECT * FROM product WHERE LOWER(name) LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
+    const query = `SELECT * FROM product WHERE active = true AND LOWER(name) LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
     const parameters = category ? [`%${search}%`, category] : [`%${search}%`];
     return (await pool.query(query, parameters)).rows;
 
@@ -91,7 +91,8 @@ export const getProducts = async (page) => {
         name, 
         category, 
         price, 
-        description
+        description,
+        active
       FROM 
         "product"
       ORDER BY 
@@ -108,8 +109,24 @@ export const getProducts = async (page) => {
 
 
 export const getAdminInfoByUsername = async (username) => {
-    return (await pool.query('SELECT username, password FROM admin WHERE username = $1 LIMIT 1', [username])).rows[0];
+    return (await pool.query('SELECT * FROM admin WHERE username = $1 LIMIT 1', [username])).rows[0];
 }
+
+export const addAdmin = async (username, password) => {
+    try {
+        const query = `
+            INSERT INTO admin (username, password)
+            VALUES ($1, $2)
+            RETURNING *;
+        `;
+        const result = await pool.query(query, [username, password]);
+
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error adding admin:', error);
+        throw error;
+    }
+};
 
 export const addNewUser = async (user) => {
     return await pool.query(
@@ -188,6 +205,99 @@ export const getOrderDetails = async (orderId) => {
     `
     return (await pool.query(query, [orderId])).rows;
 }
+
+export const addProduct = async (name, category, price, description) => {
+    try {
+        const query = `
+      INSERT INTO "product" (name, category, price, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+        const result = await pool.query(query, [name, category, price, description]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error adding product:', error);
+        throw error;
+    }
+};
+
+export const getTotalNumberOfProducts = async () => {
+    try {
+        const query = `
+            SELECT 
+                COUNT(*) AS total
+            FROM 
+                "product";
+        `;
+        const result = await pool.query(query);
+        return parseInt(result.rows[0].total, 10);
+    } catch (error) {
+        console.error('Error fetching total products:', error);
+        throw error;
+    }
+};
+
+
+export const updateProduct = async (productId, name, category, price, description) => {
+    try {
+        const query = `
+      UPDATE "product"
+      SET name = $1, category = $2, price = $3, description = $4
+      WHERE product_id = $5
+      RETURNING *;
+    `;
+        const result = await pool.query(query, [name, category, price, description, productId]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error updating product:', error);
+        throw error;
+    }
+};
+
+export const getDiscountCodes = async () => {
+    try {
+        const query = `
+            SELECT * FROM discount_code;
+        `;
+        const result = await pool.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error('Error fetching discount codes:', error);
+        throw error;
+    }
+};
+
+export const addDiscountCode = async (code, discount, admin_id) => {
+    try {
+        const query = `
+            INSERT INTO discount_code (code, admin_id, discount_percent)
+            VALUES ($1, $2, $3)
+            RETURNING *;
+        `;
+        const result = await pool.query(query, [code, admin_id, discount]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error adding discount code:', error);
+        throw error;
+    }
+};
+
+
+export const productSetActiveStatus = async (productId, status) => {
+    try {
+        const query = `
+      UPDATE "product"
+      SET active = $1
+      WHERE product_id = $2
+      RETURNING *;
+    `;
+        const result = await pool.query(query, [status, productId]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error setting product as inactive:', error);
+        throw error;
+    }
+};
 
 export const removeItemFromCart = async (productId, userId) => {
     return (await pool.query('DELETE FROM products_in_carts WHERE product_id = $1 AND client_id = $2', [productId, userId]));
