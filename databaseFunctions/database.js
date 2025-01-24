@@ -320,16 +320,16 @@ export const getProductGrade = async (id) =>{
     return (await pool.query("SELECT AVG(grade) AS average_grade FROM opinions WHERE product_id = $1", [id])).rows[0]
 }
 
-export const createOrder = async (clientId, code) => {
+export const createOrder = async (clientId, code, address, city) => {
     try {
         await pool.query('BEGIN');
 
         const insertOrderQuery = `
-      INSERT INTO "order" (client_id, date, status, discount_code)
-      VALUES ($1, NOW(), 'pakowanie', $2)
+      INSERT INTO "order" (client_id, date, status, discount_code, address, address_city)
+      VALUES ($1, NOW(), 'pakowanie', $2, $3, $4)
       RETURNING order_id
     `;
-        const orderResult = await pool.query(insertOrderQuery, [clientId, code]);
+        const orderResult = await pool.query(insertOrderQuery, [clientId, code, address, city]);
         const orderId = orderResult.rows[0].order_id;
 
         const insertOrderProductQuery = `

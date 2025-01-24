@@ -10,7 +10,7 @@ router.get("/userData", authenticateToken, async (req, res) => {
 
 router.put("/order", authenticateToken, async (req, res) => {
     const userId = req.user.id;
-    await databaseFunctions.createOrder(userId, req.body.code);
+    await databaseFunctions.createOrder(userId, req.body.code, req.body.address, req.body.city);
     res.status(200).json({message: 'Successfully created order!'});
 })
 
