@@ -224,7 +224,6 @@ export const getSalesStatistics = async (startDate, endDate, interval) => {
 }
 
 export const getTopProducts = async (category) => {
-    console.log(category)
     const query = `
     SELECT 
         p.product_id,

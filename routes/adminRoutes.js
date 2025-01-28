@@ -10,7 +10,6 @@ router.get("/getUsers/:pageNr", async (req, res) => {
 })
 
 router.get("/getAllProducts/:pageNr" , async (req, res) => {
-    console.log("getProducts")
     return res.status(200).json({products: await databaseFunctions.getProducts(req.params.pageNr), total: await databaseFunctions.getTotalNumberOfProducts()})
 })
 
@@ -43,13 +42,16 @@ router.post('/addNewProduct', async (req, res) => {
 });
 
 router.delete("/productSetActiveStatus/:productId/:active", async (req, res) => {
-    console.log(await databaseFunctions.productSetActiveStatus(req.params.productId, req.params.active))
-    return res.status(200).json({message: "success"})
+    try {
+        await databaseFunctions.productSetActiveStatus(req.params.productId, req.params.active)
+        return res.status(200).json({message: "success"});
+    } catch (error) {
+        return res.status(400).json({message: "Failed"});
+    }
 });
 
 router.get('/getCodes', async (req, res) => {
     try {
-        console.log("getCodes")
         const codes = await databaseFunctions.getDiscountCodes();
         res.status(200).json(codes);
     } catch (error) {
@@ -66,7 +68,6 @@ router.post('/addNewCode', async (req, res) => {
     }
 
     try {
-        console.log(req.user.id)
         const newCode = await databaseFunctions.addDiscountCode(code, discount_percent, req.user.id);
         res.status(201).json({ message: 'Discount code added successfully', code: newCode });
     } catch (error) {
@@ -134,9 +135,7 @@ router.put("/updateOrderStatus/:orderId", async (req, res) => {
 router.post("/getSalesStatistics", async (req, res) => {
     try {
         const {start_date, end_date, interval} = req.body;
-        console.log(start_date, end_date)
         const data = await databaseFunctions.getSalesStatistics(start_date, end_date, interval);
-        console.log(data)
         res.status(200).json(data);
     } catch (error) {
         console.error('Error in /getCodes endpoint:', error);

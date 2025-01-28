@@ -68,7 +68,6 @@ router.get("/verifyToken", (req, res) => {
 router.post('/admin/login', async (req, res) => {
     const {username, password} = req.body
     const user = await databaseFunctions.getAdminInfoByUsername(username);
-    console.log(user)
     if(user.password === password){
         const token = jwt.sign({ email: username, id: user.admin_id, role: "admin" }, JWT_SECRET, { expiresIn: '1h' });
         res.status(200).json({ success: true, token });

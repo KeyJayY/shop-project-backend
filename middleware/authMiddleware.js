@@ -17,8 +17,6 @@ export const authenticateToken = (req, res, next) => {
 
 export const verifyAdminToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
-    // console.log(req.headers.authorization)
-    // console.log(!authHeader || !authHeader.startsWith("Bearer "))
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "No Token aaa" });
     }
