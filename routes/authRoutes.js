@@ -8,6 +8,12 @@ const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET_KEY;
 
+/**
+ * @route POST /auth/login
+ * @description Logowanie użytkownika, generuje token uwierzytelniający
+ * @param {string} username - Email użytkownika
+ * @param {string} password - Hasło użytkownika
+ */
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = await databaseFunctions.getUserInfoByEmail(username);
@@ -24,14 +30,24 @@ router.post('/login', async (req, res) => {
     res.json({ message: 'Successfully logged in!', token });
 });
 
+/**
+ * @route GET /auth/admin/check-token
+ * @description Sprawdza ważność tokenu administratora
+ * @requires {string} token - Token administratora w nagłówkach
+ */
 router.get('/admin/check-token', verifyAdminToken, (req, res) => {
-    res.status(200).json({message: "verified"})
+    res.status(200).json({ message: "verified" });
 });
 
+/**
+ * @route POST /auth/register
+ * @description Rejestracja nowego użytkownika
+ * @param {Object} data - Dane użytkownika: email, hasło, imię, nazwisko
+ */
 router.post('/register', async (req, res) => {
     try {
         const data = req.body;
-        data.password = await bcrypt.hash(req.body.password, 10);
+        data.password = await bcrypt.hash(req.body.password, 10); // Hashowanie hasła
         const result = await databaseFunctions.addNewUser(data);
 
         if (result) {
@@ -40,7 +56,7 @@ router.post('/register', async (req, res) => {
             res.status(400).json({ message: 'Failed to create account. Please try again.' });
         }
     } catch (error) {
-        if (error.code === '23505') {
+        if (error.code === '23505') { // Kod błędu dla unikalnego ograniczenia (np. email już istnieje)
             res.status(409).json({ message: 'Email already in use. Please use a different email address.' });
         } else {
             console.error('Error creating account:', error);
@@ -49,6 +65,11 @@ router.post('/register', async (req, res) => {
     }
 });
 
+/**
+ * @route GET /auth/verifyToken
+ * @description Weryfikacja tokenu użytkownika
+ * @requires {string} authorization - Token w nagłówku Bearer
+ */
 router.get("/verifyToken", (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -63,22 +84,23 @@ router.get("/verifyToken", (req, res) => {
     } catch (err) {
         return res.status(401).json({ valid: false, message: "wrong token" });
     }
-})
+});
 
+/**
+ * @route POST /auth/admin/login
+ * @description Logowanie administratora, generuje token z rolą "admin"
+ * @param {string} username - Nazwa użytkownika administratora
+ * @param {string} password - Hasło administratora
+ */
 router.post('/admin/login', async (req, res) => {
-    const {username, password} = req.body
+    const { username, password } = req.body;
     const user = await databaseFunctions.getAdminInfoByUsername(username);
-    if(user.password === password){
+    if (user.password === password) {
         const token = jwt.sign({ email: username, id: user.admin_id, role: "admin" }, JWT_SECRET, { expiresIn: '1h' });
         res.status(200).json({ success: true, token });
     } else {
         res.status(400).json({ message: 'wrong username or password!' });
     }
-
 });
 
-
-
 export default router;
-
-
