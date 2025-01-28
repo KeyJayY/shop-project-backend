@@ -63,7 +63,7 @@ app.get('/image/:id', async (req, res) => {
     const data = await databaseFunctions.getImage(id);
 
     res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Disposition', `inline; filename="${data.name}"`);
+    res.setHeader('Content-Disposition', `inline; filename="image_${id}"`);
 
     res.send(data.image);
 });

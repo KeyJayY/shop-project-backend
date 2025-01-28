@@ -2,7 +2,6 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import * as databaseFunctions from '../databaseFunctions/database.js';
 import { generateToken, verifyAdminToken, authenticateToken } from '../middleware/authMiddleware.js';
-import {removeItemFromCart} from "../databaseFunctions/database.js";
 
 const router = express.Router()
 
@@ -102,5 +101,71 @@ router.post('/addNewAdmin', async (req, res) => {
         }
     }
 });
+
+router.get("/getOrderDetails/:id", async (req, res) => {
+    res.status(200).json(await databaseFunctions.getOrderDetails(req.params.id));
+})
+
+router.get('/getAllOrders/:page', async (req, res) => {
+    try {
+        res.status(200).json({orders: await databaseFunctions.getAllOrders(req.params.page), total: await databaseFunctions.getTotalNumberOfOrders()});
+    } catch (error) {
+        console.error('Error in endpoint:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.put("/updateOrderStatus/:orderId", async (req, res) => {
+    const { status } = req.body;
+    try {
+        const updatedProduct = await databaseFunctions.updateOrderStatus(req.params.orderId, status);
+
+        if (updatedProduct) {
+            res.status(200).json({ message: "success", product: updatedProduct });
+        } else {
+            res.status(400).json({ message: "Order not found or update failed" });
+        }
+    } catch (error) {
+        console.error("Error in updateOrderStatus route:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+router.post("/getSalesStatistics", async (req, res) => {
+    try {
+        const {start_date, end_date, interval} = req.body;
+        console.log(start_date, end_date)
+        const data = await databaseFunctions.getSalesStatistics(start_date, end_date, interval);
+        console.log(data)
+        res.status(200).json(data);
+    } catch (error) {
+        console.error('Error in /getCodes endpoint:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+})
+
+router.get("/getTopProducts/:category", async (req, res) => {
+    try {
+        let category = req.params.category;
+        if(category == "all")
+            category = '';
+        const data = await databaseFunctions.getTopProducts(category);
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+})
+
+router.get("/getTopPopularProducts/:category", async (req, res) => {
+    try {
+        let category = req.params.category;
+        if(category == "all")
+            category = '';
+        const data = await databaseFunctions.getTopPopularProducts(category);
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+})
 
 export default router;

@@ -21,7 +21,12 @@ pool.on('connect', (client) => {
 });
 
 export const getShopItems = async (search = "", sort = "", category = "") => {
-    const query = `SELECT * FROM product WHERE active = true AND LOWER(name) LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
+    const query = `
+    SELECT
+        *
+    FROM active_products_with_images 
+    WHERE LOWER(name) 
+    LIKE LOWER($1) ${category ? "AND category = $2" : ""} ${sort ? sort === "desc" ? "ORDER BY price DESC" : "ORDER BY price ASC" : ""}`;
     const parameters = category ? [`%${search}%`, category] : [`%${search}%`];
     return (await pool.query(query, parameters)).rows;
 
@@ -72,6 +77,22 @@ export const getTotalNumberOfUsers = async () => {
         COUNT(*) AS total
       FROM 
         "user";
+    `;
+        const result = await pool.query(query);
+        return parseInt(result.rows[0].total, 10);
+    } catch (error) {
+        console.error('Error fetching total users:', error);
+        throw error;
+    }
+};
+
+export const getTotalNumberOfOrders = async () => {
+    try {
+        const query = `
+      SELECT 
+        COUNT(*) AS total
+      FROM 
+        "order";
     `;
         const result = await pool.query(query);
         return parseInt(result.rows[0].total, 10);
@@ -140,7 +161,7 @@ export const getShopItemById = async (id) => {
 }
 
 export const getUserDataByEmail = async (email) => {
-    return (await pool.query('SELECT user_id, first_name, last_name, address, address_city, birth_date FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
+    return (await pool.query('SELECT user_id, first_name, last_name, address, address_city, birth_date, email FROM "user" WHERE email = $1 LIMIT 1', [email])).rows[0];
 }
 
 export const getOpinionsByProductId = async (productId) => {
@@ -161,6 +182,126 @@ export const updateUserData = async (user, userId) => {
 
 export const addProductOpinion = async (productId, userId, opinion, grade) => {
     return await pool.query('INSERT INTO opinion VALUES ($1, $2, $3, $4)', [productId, userId, opinion, grade])
+}
+
+export const getSalesStatistics = async (startDate, endDate, interval) => {
+    let period = "";
+    switch (interval){
+        case "day":
+            period = "DATE(o.date)"
+            break;
+        case "week":
+            period = "CONCAT(EXTRACT(YEAR FROM o.date), '-W', EXTRACT(WEEK FROM o.date))"
+            break;
+        case "month":
+            period = "CONCAT(EXTRACT(YEAR FROM o.date), '-', LPAD(EXTRACT(MONTH FROM o.date)::TEXT, 2, '0'))"
+            break;
+        case "year":
+            period = "EXTRACT(YEAR FROM o.date)::TEXT"
+            break;
+    }
+    const query = `
+    SELECT 
+        ${period} AS period,
+        SUM(op.amount * p.price * (1 - COALESCE(dc.discount_percent, 0) / 100.0)) AS total_sales_with_discount,
+        SUM(op.amount * p.price) AS total_sales_without_discount
+    FROM 
+        "order" o
+    JOIN 
+        order_product op ON o.order_id = op.order_id
+    JOIN 
+        product p ON op.product_id = p.product_id
+    LEFT JOIN 
+        discount_code dc ON o.discount_code = dc.code
+    WHERE 
+        DATE(o.date) BETWEEN $1 AND $2
+    GROUP BY 
+        ${period}
+    ORDER BY 
+        period;
+    `
+    return (await pool.query(query, [startDate, endDate])).rows;
+}
+
+export const getTopProducts = async (category) => {
+    console.log(category)
+    const query = `
+    SELECT 
+        p.product_id,
+        p.name AS product_name,
+        p.category,
+        COALESCE(SUM(op.amount), 0) AS total_quantity_sold,
+        COALESCE(SUM(op.amount * p.price), 0) AS total_sales
+    FROM 
+        product p
+    LEFT JOIN 
+        order_product op ON p.product_id = op.product_id
+    LEFT JOIN 
+        "order" o ON op.order_id = o.order_id
+    WHERE 
+        ($1 = '' OR p.category = $1)
+    GROUP BY 
+        p.product_id, p.name, p.category
+    ORDER BY 
+        total_quantity_sold DESC;
+
+    `;
+
+    const result = await pool.query(query, [category]);
+
+    return result.rows;
+}
+
+export const getTopPopularProducts = async (category) => {
+    const query = `
+    SELECT
+        p.product_id,
+        p.name AS product_name,
+        p.category AS category,
+        COUNT(hv.history_id) AS total_views
+    FROM
+        product p
+    LEFT JOIN
+        history_of_viewed hv ON p.product_id = hv.product_id
+    WHERE
+        ($1 = '' OR p.category = $1)
+    GROUP BY
+        p.product_id, p.name
+    ORDER BY
+        total_views DESC;
+    `;
+
+    return (await pool.query(query, [category])).rows;
+}
+
+export const getAllOrders = async (page) => {
+    const recordsPerPage = 50;
+    const offset = (page - 1) * recordsPerPage;
+    const query = `
+    SELECT
+        o.order_id,
+        o.date date,
+        CEIL(SUM(op.amount * p.price * (1 - COALESCE(dc.discount_percent, 0) / 100.0))) AS price,
+        o.status,
+        dc.discount_percent,
+        address,
+        address_city
+    FROM
+        "order" o
+    JOIN
+        order_product op ON o.order_id = op.order_id
+    JOIN
+        product p ON op.product_id = p.product_id
+    LEFT JOIN
+        discount_code dc ON o.discount_code = dc.code
+    GROUP BY
+        o.order_id, discount_percent
+    ORDER BY
+        o.status, o.order_id
+    LIMIT $1 OFFSET $2
+
+    `
+    return (await pool.query(query, [recordsPerPage, offset])).rows;
 }
 
 export const getOrdersByUserId = async (userId) => {
@@ -254,6 +395,22 @@ export const updateProduct = async (productId, name, category, price, descriptio
     }
 };
 
+export const updateOrderStatus = async (orderId, status) => {
+    try {
+        const query = `
+      UPDATE "order"
+      SET status = $2
+      WHERE order_id = $1
+      RETURNING *;
+    `;
+        const result = await pool.query(query, [orderId, status]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error updating product:', error);
+        throw error;
+    }
+}
+
 export const getDiscountCodes = async () => {
     try {
         const query = `
@@ -306,13 +463,12 @@ export const removeItemFromCart = async (productId, userId) => {
 export const getImage = async (id) => {
     try {
         const result = await pool.query(
-            'SELECT image FROM image WHERE image_id = $1',
+            'SELECT image FROM image WHERE product_id = $1',
             [id]
         );
         return result.rows[0];
     } catch (error) {
         console.error('Błąd podczas pobierania obrazu:', error);
-        res.status(500).send('Wystąpił błąd serwera');
     }
 }
 
