@@ -28,6 +28,9 @@ This is a Node.js application developed as a final project for a university cour
    ```
 5. Access the API via `http://localhost:3000` (default port).
 
+## Database Structure
+![erd](erd.png)
+
 ## Installation Notes
 The application is designed to run on Node.js and requires a PostgreSQL database. Ensure that your database connection is properly configured before running the server.
 
