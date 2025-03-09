@@ -38,4 +38,4 @@ The application is designed to run on Node.js and requires a PostgreSQL database
 This project was developed as part of a university course on databases. It provides a functional backend for an online store, focusing on secure and efficient data management.
 
 ## Frontend
-https://github.com/KeyJayY/shop-project-frontend
+https://github.com/KeyJayY/shop-project-front-end
